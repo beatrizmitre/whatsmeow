@@ -17,9 +17,9 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
-	
+
 	"github.com/gin-gonic/gin"
-	
+
 	"os"
 	"os/signal"
 	"strconv"
@@ -27,7 +27,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-	
+
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mdp/qrterminal/v3"
 	"google.golang.org/protobuf/proto"
@@ -1108,9 +1108,31 @@ func handler(rawEvt interface{}) {
 			metaParts = append(metaParts, "edit")
 		}
 
-		
+
 		log.Infof("Received message %s from %s (%s): %+v", evt.Info.ID, evt.Info.SourceString(), strings.Join(metaParts, ", "), evt.Message)
 
+		// Prepare the message to be sent
+		message := map[string]string{
+				"ID":      evt.Info.ID,
+				"Source":  evt.Info.SourceString(),
+				"Meta":    strings.Join(metaParts, ", "),
+				"Message": fmt.Sprintf("%+v", evt.Message),
+		}
+		jsonMessage, err := json.Marshal(message)
+		if err != nil {
+				log.Panic(err)
+		}
+
+		// Send the POST request
+		req, err := http.NewRequest("POST", "http://localhost:3000/webhooks", bytes.NewBuffer(jsonMessage))
+		req.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+				log.Panic(err)
+		}
+		defer resp.Body.Close()
 
 		if evt.Message.GetPollUpdateMessage() != nil {
 			decrypted, err := cli.DecryptPollVote(evt)
