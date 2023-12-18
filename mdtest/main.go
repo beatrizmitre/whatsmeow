@@ -6,6 +6,7 @@
 
 package main
 
+
 import (
 	"bufio"
 	"context"
@@ -16,6 +17,9 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	
+	"github.com/gin-gonic/gin"
+	
 	"os"
 	"os/signal"
 	"strconv"
@@ -23,7 +27,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-
+	
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mdp/qrterminal/v3"
 	"google.golang.org/protobuf/proto"
@@ -39,6 +43,21 @@ import (
 	waLog "go.mau.fi/whatsmeow/util/log"
 )
 
+type bemessage struct {
+	ID     string  `json:"id"`
+	Content  string  `json:"content"`
+}
+
+var bemessages = []bemessage{
+	{ID: "1", Content: "oi"},
+	{ID: "2", Content: "hello"},
+	{ID: "3", Content: "Halo"},
+}
+
+func getBemessages(c *gin.Context) {
+	c.IndentedJSON(http.StatusOK, bemessages)
+}
+
 var cli *whatsmeow.Client
 var log waLog.Logger
 
@@ -50,6 +69,12 @@ var requestFullSync = flag.Bool("request-full-sync", false, "Request full (1 yea
 var pairRejectChan = make(chan bool, 1)
 
 func main() {
+
+	router := gin.Default()
+	router.GET("/bemessages", getBemessages)
+
+	router.Run("localhost:8080")
+
 	waBinary.IndentXML = true
 	flag.Parse()
 
@@ -1083,7 +1108,9 @@ func handler(rawEvt interface{}) {
 			metaParts = append(metaParts, "edit")
 		}
 
+		
 		log.Infof("Received message %s from %s (%s): %+v", evt.Info.ID, evt.Info.SourceString(), strings.Join(metaParts, ", "), evt.Message)
+
 
 		if evt.Message.GetPollUpdateMessage() != nil {
 			decrypted, err := cli.DecryptPollVote(evt)
